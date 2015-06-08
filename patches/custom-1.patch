@@ -1,0 +1,13 @@
+diff --git a/includes/form.inc b/includes/form.inc
+index 306747b..3fbddc0 100644
+--- a/includes/form.inc
++++ b/includes/form.inc
+@@ -2704,7 +2704,7 @@ function form_process_select($element) {
+       // to prevent another option in #options mistakenly using the same value
+       // as #empty_value.
+       $empty_option = array($element['#empty_value'] => $element['#empty_option']);
+-      $element['#options'] = $empty_option + $element['#options'];
++      $element['#options'] = $empty_option + (is_array($element['#options']) ? $element['#options'] : array());
+     }
+   }
+   return $element;
