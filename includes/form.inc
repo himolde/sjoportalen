@@ -2704,7 +2704,7 @@ function form_process_select($element) {
       // to prevent another option in #options mistakenly using the same value
       // as #empty_value.
       $empty_option = array($element['#empty_value'] => $element['#empty_option']);
-      $element['#options'] = $empty_option + (is_array($element['#options']) ? $element['#options'] : array());
+      $element['#options'] = $empty_option + $element['#options'];
     }
   }
   return $element;
