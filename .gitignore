@@ -3,5 +3,6 @@ sites/*/settings*.php
 
 # Ignore paths that contain user-generated content.
 filer
+sites/all/translations
 sites/*/files
 sites/*/private
