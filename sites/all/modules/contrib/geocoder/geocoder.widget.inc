@@ -404,6 +404,7 @@ function geocoder_widget_parse_addressfield($field_item) {
   $address = '';
   if (!empty($field_item['premise']))                 $address .= $field_item['premise'] . ',';
   if (!empty($field_item['thoroughfare']))            $address .= $field_item['thoroughfare'] . ',';
+  if (!empty($field_item['dependent_locality']))      $address .= $field_item['dependent_locality'] . ',';
   if (!empty($field_item['locality']))                $address .= $field_item['locality'] . ',';
   if (!empty($field_item['administrative_area']))     $address .= $field_item['administrative_area'] . ',';
   if (!empty($field_item['sub_administrative_area'])) $address .= $field_item['sub_administrative_area'] . ',';
