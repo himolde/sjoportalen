@@ -34,7 +34,7 @@ function ip_geoloc_getCurrentPosition(callbackUrl, reverseGeocode, refreshPage) 
 
     if (window.console && window.console.log) { // Does not work on IE8
       var elapsedTime = (new Date()).getTime() - startTime;
-      window.console.log(elapsedTime/1000 + ' s to locate visitor');
+      window.console.log(Drupal.t('!time s to locate visitor', { '!time' : elapsedTime/1000 }));
     }
     var ip_geoloc_address = new Object;
     ip_geoloc_address['latitude']  = position.coords.latitude;
@@ -66,13 +66,16 @@ function ip_geoloc_getCurrentPosition(callbackUrl, reverseGeocode, refreshPage) 
         }
       }
       else {
-        //alert(Drupal.t('IPGV&M: Google Geocoder returned error !code.', { '!code': status }));
-        ip_geoloc_address['error'] = Drupal.t('getLocation(): Google Geocoder address lookup failed with status code !code.', { '!code': status });
+        var error = ''; // from response or status?
+        if (window.console && window.console.log) {
+          window.console.log(Drupal.t('IPGV&M: Google Geocoder returned error !code.', { '!code': status }));
+        }
+        ip_geoloc_address['error'] = Drupal.t('getLocation(): Google Geocoder address lookup failed with status code !code. @error', { '!code': status, '@error': error });
         refreshPage = false;
       }
       if (window.console && window.console.log) {
         var elapsedTime = (new Date()).getTime() - startTime;
-        window.console.log(elapsedTime/1000 + ' s to reverse-geocode to address');
+        window.console.log(Drupal.t('!time s to reverse-geocode to address', { '!time' : elapsedTime/1000 }));
       }
 
       // Pass lat/long, accuracy and address back to Drupal
@@ -98,19 +101,36 @@ function ip_geoloc_getCurrentPosition(callbackUrl, reverseGeocode, refreshPage) 
       type: 'POST',
       dataType: 'json',
       data: data,
-      success: function () {
-      },
-      error: function (http) {
-        if (http.status > 0 && http.status !== 200 && http.status !== 404 && http.status !== 503) {
-          // 404 may happen intermittently and when Clean URLs isn't enabled
-          // 503 may happen intermittently, see [#2158847]
-          alert(Drupal.t('IPGV&M: an HTTP error @status occurred.', { '@status': http.status }));
+      success: function (serverData, textStatus, http) {
+        if (window.console && window.console.log) {
+          if (serverData && serverData.messages && serverData.messages['status']) {
+            // When JS module is used, it collects msgs via drupal_get_messages().
+            var messages = serverData.messages['status'].toString();
+            // Remove any HTML markup.
+            var msg = Drupal.t('From server, via JS: ') + jQuery('<p>' + messages + '</p>').text();
+          }
+          else {
+            //var msg = Drupal.t('Server confirmed with: @status', { '@status': textStatus });
+          }
+          window.console.log(msg);
         }
-      },
-      complete: function() {
         if (refresh_page) {
           window.location.reload();
         }
+      },
+      error: function (http, textStatus, error) {
+        // 404 may happen intermittently and when Clean URLs isn't enabled
+        // 503 may happen intermittently, see [#2158847]
+        var msg = Drupal.t('IPGV&M, ip_geoloc_current_location.js @status: @error (@code)', { '@status': textStatus, '@error': error, '@code': http.status });
+        if (window.console && window.console.log) {
+          window.console.log(msg);
+        }
+        if (http.status > 0 && http.status !== 200 && http.status !== 404 && http.status !== 503) {
+          alert(msg);
+        }
+      },
+      complete: function(http, textStatus) {
+        window.console.log(Drupal.t('AJAX call completed with @status', { '@status': textStatus }));
       }
     });
   }

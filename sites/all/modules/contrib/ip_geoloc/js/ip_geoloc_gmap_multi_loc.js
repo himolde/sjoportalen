@@ -8,10 +8,11 @@
         return;
       }
       // Create map as a global, see [#1954876].
-      // As we can have multiple maps on the same page, this is now an array.
+      // As we can have multiple maps on the same page, maps is an array.
       maps = [];
       mapBounds = [];
       var imageExt = '.png';
+      var infoWindow = new google.maps.InfoWindow();
 
       $(settings, context).each(function() {
 
@@ -94,13 +95,17 @@
               // scaledSize
               new google.maps.Size(markerWidth, markerHeight));
           }
-          var marker = new google.maps.Marker({ map: maps[m], icon: pinImage, /*shadow: shadowImage,*/ position: position, title: mouseOverText });
+          var marker = new google.maps.Marker({
+            map: maps[m], icon: pinImage, /*shadow: shadowImage,*/
+            position: position, title: mouseOverText, optimized: false
+          });
 
           var balloonText = '<div class="balloon">' + locations[key].balloon_text + '</div>';
           addMarkerBalloon(maps[m], marker, balloonText);
 
           if (locations[key].open) {
-            new google.maps.InfoWindow({content: balloonText, maxWidth: 200}).open(maps[m], marker);
+            infoWindow = new google.maps.InfoWindow({content: balloonText, maxWidth: 200});
+            infoWindow.open(maps[m], marker);
           }
         }
         if (centerOption === 3 && locations.length > 0) {
@@ -135,7 +140,8 @@
         for (var m in maps) {
           if (isNaN(m)) continue;
           if (settings[m].ip_geoloc_multi_location_visitor_marker) {
-            showSpecialMarker(m, visitorPosition, Drupal.t('Your approximate location (' + latitude + ', ' + longitude + ')'));
+            var p = '(' + latitude + ', ' + longitude + ')';
+            showSpecialMarker(m, visitorPosition, Drupal.t('Your approximate location') + "\n" + p);
           }
           if (settings[m].ip_geoloc_multi_location_center_option === 2) {
             maps[m].setCenter(visitorPosition);
@@ -150,11 +156,15 @@
 
       function addMarkerBalloon(map, marker, infoText) {
         google.maps.event.addListener(marker, 'click', function(event) {
-          new google.maps.InfoWindow({
+          if (infoWindow) {
+            infoWindow.close();
+          }
+          infoWindow.setOptions({
             content: infoText,
             // See [#1777664].
             maxWidth: 200
-          }).open(map, marker);
+          });
+          infoWindow.open(map, marker);
         });
       }
 
@@ -175,7 +185,14 @@
           // Note: cannot use https: here...
           var pinImage = new google.maps.MarkerImage("http://chart.apis.google.com/chart?chst=d_map_pin_letter&chld=" + pinChar + "|" + pinColor + "|" + textColor,
             new google.maps.Size(21, 34), new google.maps.Point(0, 0), new google.maps.Point(10, 34));
-          specialMarker = new google.maps.Marker({ map: maps[m], icon: pinImage, /*shadow: shadowImage,*/ position: position, title: mouseOverText });
+          specialMarker = new google.maps.Marker({
+            map: maps[m],
+            position: position,
+            zIndex: 9999,
+            title: mouseOverText,
+            icon: pinImage 
+          //shadow: shadowImage
+          });
         }
         addMarkerBalloon(maps[m], specialMarker, mouseOverText);
       }
@@ -197,5 +214,5 @@
         }
       }
     }
-  }
+  };
 })(jQuery);

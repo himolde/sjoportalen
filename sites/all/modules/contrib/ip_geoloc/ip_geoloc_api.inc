@@ -112,7 +112,7 @@ function ip_geoloc_output_map($latitude, $longitude, $div_id = 'ip-geoloc-map', 
   $javascript_files = drupal_add_js();
   if (empty($javascript_files[IP_GEOLOC_GOOGLE_MAPS_GPS])) {
     // Only add non-GPS version when GPS version isn't already there.
-    drupal_add_js(IP_GEOLOC_GOOGLE_MAPS, array('group' => JS_LIBRARY));
+    drupal_add_js(IP_GEOLOC_GOOGLE_MAPS, array('type' => 'external', 'group' => JS_LIBRARY));
   }
   drupal_add_js(drupal_get_path('module', 'ip_geoloc') . '/js/ip_geoloc_gmap.js');
 
@@ -148,7 +148,7 @@ function ip_geoloc_output_map($latitude, $longitude, $div_id = 'ip-geoloc-map', 
  */
 function ip_geoloc_output_map_current_location($div_id = 'ip-geoloc-map-current-location',
     $map_options = NULL, $map_style = NULL, $latitude = NULL, $longitude = NULL, $info_text = NULL) {
-  drupal_add_js(IP_GEOLOC_GOOGLE_MAPS_GPS, array('group' => JS_LIBRARY));
+  drupal_add_js(IP_GEOLOC_GOOGLE_MAPS_GPS, array('type' => 'external', 'group' => JS_LIBRARY));
   drupal_add_js(drupal_get_path('module', 'ip_geoloc') . '/js/ip_geoloc_gmap_current_loc.js');
 
   if (!isset($map_options)) {
@@ -188,7 +188,7 @@ function ip_geoloc_output_map_multi_visitor($locations, $div_id = 'ip-geoloc-map
   $javascript_files = drupal_add_js();
   if (empty($javascript_files[IP_GEOLOC_GOOGLE_MAPS_GPS])) {
     // Only add non-GPS version when GPS version isn't already there.
-    drupal_add_js(IP_GEOLOC_GOOGLE_MAPS, array('group' => JS_LIBRARY));
+    drupal_add_js(IP_GEOLOC_GOOGLE_MAPS, array('type' => 'external', 'group' => JS_LIBRARY));
   }
   drupal_add_js(drupal_get_path('module', 'ip_geoloc') . '/js/ip_geoloc_gmap_multi_visitor.js');
 
@@ -260,13 +260,13 @@ function ip_geoloc_output_map_multi_location($locations, $div_id = 'ip-geoloc-ma
     $center_option = 0, $center_latlng = array(0, 0), $visitor_location_gps = TRUE) {
 
   if ($visitor_location_gps) {
-    drupal_add_js(IP_GEOLOC_GOOGLE_MAPS_GPS, array('group' => JS_LIBRARY));
+    drupal_add_js(IP_GEOLOC_GOOGLE_MAPS_GPS, array('type' => 'external', 'group' => JS_LIBRARY));
   }
   else {
     $javascript_files = drupal_add_js();
     if (empty($javascript_files[IP_GEOLOC_GOOGLE_MAPS_GPS])) {
       // Only add non-GPS version when GPS version isn't already there.
-      drupal_add_js(IP_GEOLOC_GOOGLE_MAPS, array('group' => JS_LIBRARY));
+      drupal_add_js(IP_GEOLOC_GOOGLE_MAPS, array('type' => 'external', 'group' => JS_LIBRARY));
     }
   }
   drupal_add_js(drupal_get_path('module', 'ip_geoloc') . '/js/ip_geoloc_gmap_multi_loc.js');
@@ -311,24 +311,33 @@ function ip_geoloc_output_map_multi_location($locations, $div_id = 'ip-geoloc-ma
   print "\n<script>\nif (typeof(ip_geoloc_locations) === 'undefined') {\n ip_geoloc_locations = new Array();\n}\n";
   print "ip_geoloc_locations['$div_id'] = [\n";
 
+  $illegal_chars = array("\n", "\r");
   foreach ($locations as $location) {
     if (isset($location->type) && $location->type != 'point') {
       continue;
     }
-    $balloon_text = isset($location->balloon_text) ? addslashes(str_replace("\n", '', $location->balloon_text)) : '';
-    print '{ "type":"point"' .
+    // Balloon text must not have newlines, use <br/> instead.
+    $balloon_text = NULL;
+    if (!empty($location->balloon_text)) {
+      $balloon_text = str_replace($illegal_chars, ' ', $location->balloon_text);
+      $balloon_text = addslashes($balloon_text);
+    }
+    $output = '{' .
+      '"type":"point"' .
       (empty($location->marker_color) ? '' : ',"marker_color":"' . $location->marker_color . '"') .
+      (empty($balloon_text) ? '' : ',"balloon_text":"' . $balloon_text . '"') .
       (empty($location->open) ? '' : ',"open":1') .
       ',"latitude":' . $location->latitude .
       ',"longitude":' . $location->longitude .
-      ',"balloon_text":\'' . $balloon_text . '\'},';
+    "},\n";
+    print $output;
 
     $color = empty($location->marker_color) ? t('default') . " [$marker_color]" : $location->marker_color;
     $coords = isset($location->latitude) ? $location->latitude . ', ' . $location->longitude : '';
     $msg = '- ' . t('marker') . " $color ($coords)<br/>$balloon_text<br/>";
     ip_geoloc_debug($msg);
   }
-  print "\n];\n</script>\n";
+  print "];\n</script>\n";
 
   $settings = array(
     'ip_geoloc_multi_location_map_div' => $div_id,
@@ -370,14 +379,17 @@ function ip_geoloc_output_map_multi_location($locations, $div_id = 'ip-geoloc-ma
  */
 function ip_geoloc_get_current_location($menu_callback = NULL, $reverse_geocode = NULL, $refresh_page = NULL) {
 
-  $throbber_text = variable_get('ip_geoloc_throbber_text2', IP_GEOLOC_THROBBER_DEFAULT_TEXT);
+  $throbber_text = variable_get('ip_geoloc_throbber_text2');
+  if (empty($throbber_text)) {
+    $throbber_text = IP_GEOLOC_THROBBER_DEFAULT_TEXT;
+  }
   if ($throbber_text !== '<none>') {
     drupal_set_message(filter_xss_admin($throbber_text));
   }
   _ip_geoloc_set_session_value('last_position_check', time());
   _ip_geoloc_set_session_value('position_pending_since', microtime(TRUE));
 
-  drupal_add_js(IP_GEOLOC_GOOGLE_MAPS_GPS, array('group' => JS_LIBRARY));
+  drupal_add_js(IP_GEOLOC_GOOGLE_MAPS_GPS, array('type' => 'external', 'group' => JS_LIBRARY));
   drupal_add_js(drupal_get_path('module', 'ip_geoloc') . '/js/ip_geoloc_current_location.js');
 
   if (!isset($menu_callback)) {
@@ -564,7 +576,9 @@ function ip_geoloc_reverse_geocode($latitude, $longitude, $lang = NULL) {
  *   Lat/Lon array from SESSION
  */
 function ip_geoloc_get_visitor_location() {
-  return _ip_geoloc_get_session_value('location');
+  $location = _ip_geoloc_get_session_value('location');
+  drupal_alter('ip_geoloc_get_visitor_location', $location);
+  return $location;
 }
 
 /**
@@ -775,4 +789,44 @@ function ip_geoloc_earth_radius_semiminor() {
  */
 function ip_geoloc_earth_flattening() {
   return (1.0 / 298.257223563);
+}
+
+/**
+ * Return a random point within the circle centered on the supplied location.
+ * @param array $location, holding 'lat' and 'lon' entries
+ * @param float $radius, expressed in meters, should be greater than zero
+ * @return array with randomly displaced 'lat' and 'lon'
+ *
+ * From: http://stackoverflow.com/a/5838991/5350316
+ */
+function ip_geoloc_add_random_displacement(&$location, $radius_km) {
+
+  $a = ip_geoloc_random(0, 1);
+  $b = ip_geoloc_random(0, 1);
+  if ($b < $a) {
+    // Swap
+    $c = $a;
+    $a = $b;
+    $b = $c;
+  }
+  $angle = 2 * pi() * $a / $b;
+  // Approximate km to degrees conversion
+  // See http://stackoverflow.com/questions/1253499/simple-calculations-for-working-with-lat-lon-km-distance
+  $radius = $radius_km / 111000;
+
+  $location['lat'] += $b * $radius * cos($angle);
+  $location['lon'] += $b * $radius * sin($angle);
+}
+
+/**
+ * Generate a random number uniformly distributed between supplied limits.
+ *
+ * @param float $min
+ * @param float $max
+ * @return float
+ *
+ * @ee http://php.net/manual/en/function.mt-getrandmax.php
+ */
+function ip_geoloc_random($min = 0, $max = 1) {
+    return $min + mt_rand() / mt_getrandmax() * ($max - $min);
 }

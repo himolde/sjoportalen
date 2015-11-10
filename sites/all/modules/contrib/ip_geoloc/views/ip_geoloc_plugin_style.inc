@@ -617,6 +617,9 @@ function ip_geoloc_plugin_style_extract_locations($views_plugin_style) {
   }
   if (!empty($views_plugin_style->options['cluster_aggregation']['aggregation_field'])) {
     $aggregation_field = $views_plugin_style->options['cluster_aggregation']['aggregation_field'];
+    if (isset($view->field[$aggregation_field]->definition['type'])) {
+      $is_count = (substr($view->field[$aggregation_field]->definition['type'], 0, 4) == 'list');
+    }
   }
   $tooltip_field = FALSE;
   if (isset($views_plugin_style->options['tooltips']['marker_tooltip'])) {
@@ -700,7 +703,7 @@ function ip_geoloc_plugin_style_extract_locations($views_plugin_style) {
 
           if (isset($aggregation_field)) {
             $value = ip_geoloc_get_view_result($views_plugin_style, $aggregation_field, $i);
-            $location->aggregation_value = reset($value);
+            $location->aggregation_value = empty($is_count) ? reset($value) : count($value);
           }
           $locations[$j ? "$i.$j" : $i] = $location;
           $j++;
@@ -738,7 +741,7 @@ function ip_geoloc_plugin_style_extract_locations($views_plugin_style) {
             _ip_geoloc_plugin_style_decorate($location, $row, $tooltip_field, $tag_field);
             if (isset($aggregation_field)) {
               $value = ip_geoloc_get_view_result($views_plugin_style, $aggregation_field, $i);
-              $location->aggregation_value = reset($value);
+              $location->aggregation_value = empty($is_count) ? reset($value) : count($value);
             }
             $locations[$j ? "$i.$j" : $i] = $location;
             $j++;
@@ -748,6 +751,12 @@ function ip_geoloc_plugin_style_extract_locations($views_plugin_style) {
         }
         if ($j === 0 && $error_count++ === 0) {
           $first_error = $i;
+          if (isset($row->nid)) {
+            $id = 'nid #' . $row->nid;
+          }
+          if (isset($row->node_title)) {
+            $id .= ': ' . $row->node_title;
+          }
         }
       }
     }
@@ -761,11 +770,12 @@ function ip_geoloc_plugin_style_extract_locations($views_plugin_style) {
       '@total' => $row_count,
       '@error_count' => $error_count,
       '@first' => $first_error + 1,
+      '%id' => isset($id) ? " ($id)" : '',
       '%latitudes' => implode(' ' . t('or') . ' ', $latitudes),
     );
     $msg = ($error_count >= $row_count) 
       ? t('None of the @total result rows in view %view_title had their %latitudes set. Therefore those rows could not be displayed as locations on the map. Are you using the correct field names?', $t_args)
-      : t('Out of a total of @total result rows in view %view_title, @error_count rows did not have their %latitudes set and therefore could not be shown on the map. The first row that could not be located was row #@first. You can improve execution efficiency by using the Views UI to add an "is not empty" filter for %latitudes.', $t_args);
+      : t('Out of a total of @total result rows in view %view_title, @error_count rows did not have their %latitudes set and therefore could not be shown on the map. The first row that could not be located was row #@first%id. You can improve execution efficiency by using the Views UI to add an "is not empty" filter for %latitudes.', $t_args);
     drupal_set_message($msg);
 
     if ($is_debug) {
@@ -1079,33 +1089,61 @@ function _ip_geoloc_plugin_style_get_differentiator_value($row, $differentiator,
       }
     }
   }
+  elseif (!empty($row->_field_data[$differentiator]['entity'])) {
+    $differentiator_value = '';
+    // Retrieve first value, regardless of language.
+    $v = reset($row->_field_data[$differentiator]['entity']->{$differentiator});
+    if (is_array($v)) {
+       $v = reset($v);
+       if (is_array($v)) {
+         $differentiator_value = isset($v['value']) ? $v['value'] : reset($v);
+       }
+    }
+  }
   elseif (!empty($row->_entity_properties)) {
     // Search API
-    $differentiator_value = '';
-    if (!empty($row->_entity_properties[$differentiator])) {
-      $differentiator_value = $row->_entity_properties[$differentiator];
-    }
-    elseif ($last_ = strrpos($differentiator, '_')) {
-      $differentiator = drupal_substr($differentiator, $last_ + 1);
-      if (!empty($row->_entity_properties[$differentiator])) {
-        $differentiator_value = $row->_entity_properties[$differentiator];
-      }
-    }
-    if (empty($differentiator_value)) {
-      drupal_set_message(t('IPGV&M: differentiator %diff does not appear among these Search API keys: %keys', array(
-        '%diff' => $differentiator,
-        '%keys' => implode(', ', array_keys($row->_entity_properties)),
-      )), 'warning', FALSE);
-    }
+    $differentiator_value = _ip_geoloc_plugin_style_get_search_api_value($row, $differentiator);
   }
   else {
     $differentiator_value = '';
     if (!isset($row->{'field_' . $differentiator})) {
-      drupal_set_message(t('IPGV&M: no differentiator values found for %diff. Cannot set marker images.', array(
+      drupal_set_message(t('IPGV&M: no differentiator values found for %diff. Cannot assign marker images.', array(
         '%diff' => $differentiator)), 'warning', FALSE);
     }
   }
   return $differentiator_value;
+}
+
+function _ip_geoloc_plugin_style_get_search_api_value($row, $field_name) {
+    $field_value = null;
+    if (isset($row->_entity_properties[$field_name])) {
+      //drupal_set_message(t('IPGV&M (1): Search API checking value for %name', array('%name' => $field_name)), 'warning', FALSE);
+      $field_value = $row->_entity_properties[$field_name];
+    }
+    elseif ($last_ = strrpos($field_name, '_')) {
+      $alt_field_name = drupal_substr($field_name, $last_ + 1);
+      //drupal_set_message(t('IPGV&M (2): Search API checking value for %name', array('%name' => $alt_field_name)), 'warning', FALSE);
+      if (isset($row->_entity_properties[$alt_field_name])) {
+        $field_value = $row->_entity_properties[$alt_field_name];
+      }
+    }
+    else {
+      $alt_field_name = 'field_' . $field_name;
+      //drupal_set_message(t('IPGV&M (3): Search API checking value for %name', array('%name' => $alt_field_name)), 'warning', FALSE);
+      if (isset($row->_entity_properties[$alt_field_name])) {
+        $field_value = $row->_entity_properties[$alt_field_name];
+      }
+    }
+    if (isset($field_value)) {
+      //drupal_set_message(t('IPGV&M (success!): Search API %name=%value', array('%name' => $field_name, '%value' => $field_value)), 'warning', FALSE);
+    }
+    else {
+      drupal_set_message(t('IPGV&M: Could not retrieve value of field %name, as its name does not appear among these Search API keys: %keys', array(
+        '%name' => $field_name,
+        '%keys' => implode(', ', array_keys($row->_entity_properties)),
+      )), 'warning', FALSE);
+    }
+    return isset($field_value) ? $field_value : '';
 }
 
 function _ip_geoloc_plugin_style_decorate(&$location, $row, $tooltip_field, $tag_field) {
@@ -1122,6 +1160,12 @@ function _ip_geoloc_plugin_style_decorate(&$location, $row, $tooltip_field, $tag
   }
   elseif (isset($row->tid)) {
     $location->id = $row->tid;
+  }
+  elseif (isset($row->uid)) {
+    $location->id = $row->uid;
+  }
+  elseif (isset($row->entity) && is_numeric($row->entity)) {
+    $location->id = $row->entity;
   }
 }
 
@@ -1204,7 +1248,7 @@ function ip_geoloc_get_view_result($views_plugin_style, $field, $index) {
     return NULL;
   }
   $row = $views_plugin_style->view->result[$index];
-  if (isset($row->{"field_$field_name"})) {
+  if (isset($row->{"field_$field_name"}) && $row->{"field_$field_name"} != array()) {
     $values = $row->{"field_$field_name"};
   }
   elseif (isset($row->{"views_$field_name"})) {
@@ -1215,6 +1259,10 @@ function ip_geoloc_get_view_result($views_plugin_style, $field, $index) {
   }
   elseif (isset($views_plugin_style->view->field[$field_name])) {
     $values = $views_plugin_style->get_field_value($index, $field_name);
+  }
+  elseif (!empty($row->_entity_properties)) {
+    // Search API emergency fallback
+    $values = _ip_geoloc_plugin_style_get_search_api_value($row, $field_name);
   }
   else {
     return array('');

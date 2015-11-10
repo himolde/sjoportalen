@@ -220,7 +220,7 @@ function ip_geoloc_views_data() {
 
   $data['ip_geoloc']['locality'] = array(
     'title' => t('Suburb'),
-    'help' => t('Locality (e.g. suburb)'),
+    'help' => t('Locality (e.g., suburb)'),
     'field' => array(
       'handler' => 'views_handler_field',
       'click sortable' => TRUE,
@@ -304,7 +304,7 @@ function ip_geoloc_views_plugins() {
     'style' => array(
       'ip_geoloc_map' => array(
         'title' => t('Map (Google API, via IPGV&M)'),
-        'help' => t('Displays the view as a Google map.'),
+        'help' => t('Displays the view as a Google map, using the Google API.'),
         'help topic' => 'style-ip-geoloc-map',
         'handler' => 'ip_geoloc_plugin_style_map',
         'path' => $path . '/views',
@@ -322,24 +322,26 @@ function ip_geoloc_views_plugins() {
       ),
     ),
   );
-  if (module_exists('leaflet')) {
-    $plugins['style']['ip_geoloc_leaflet'] = array(
-      'title' => t('Map (Leaflet API, via IPGV&M)'),
-      'help' => t('Displays the view as a map via the Leaflet API.'),
-      'handler' => 'ip_geoloc_plugin_style_leaflet',
-      'path' => $path . '/views',
-      // Uses ip-geoloc-leaflet.tpl.php.
-      'theme' => 'ip_geoloc_leaflet',
-      'theme path' => $path . '/views',
-      'uses fields' => TRUE,
-      'uses options' => TRUE,
-      'uses grouping' => TRUE,
-      'uses row plugin' => FALSE,
-      'type' => 'normal',
-      // May be overridden in ip_geoloc_plugin_style_leaflet::render().
-      'even empty' => TRUE,
-    );
+  $title_leaflet = t('Map (Leaflet API, via IPGV&M)');
+  if (!module_exists('leaflet')) {
+    $title_leaflet .= ' - ' . t('requires Leaflet');
   }
+  $plugins['style']['ip_geoloc_leaflet'] = array(
+    'title' => $title_leaflet,
+    'help' => t('Displays the view as a map via the Leaflet API.'),
+    'handler' => 'ip_geoloc_plugin_style_leaflet',
+    'path' => $path . '/views',
+    // Uses ip-geoloc-leaflet.tpl.php.
+    'theme' => 'ip_geoloc_leaflet',
+    'theme path' => $path . '/views',
+    'uses fields' => TRUE,
+    'uses options' => TRUE,
+    'uses grouping' => TRUE,
+    'uses row plugin' => FALSE,
+    'type' => 'normal',
+    // May be overridden in ip_geoloc_plugin_style_leaflet::render().
+    'even empty' => TRUE,
+  );
   if (module_exists('openlayers')) {
     $plugins['style']['ip_geoloc_openlayers'] = array(
       'title' => t('Map (OpenLayers API, via IPGV&M)'),
@@ -370,7 +372,7 @@ function ip_geoloc_views_plugins() {
   return $plugins;
 }
 
-/*
+/**
  * Returns meta info about each of the Geofield proximity views class.
  */
 function ip_geoloc_proximity_views_handlers() {
