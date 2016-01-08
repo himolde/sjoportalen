@@ -636,7 +636,7 @@ function yr_verdata_radar($data) {
       $radarsite = FALSE;
     }
     if ($radarsite == TRUE) {
-      $radar['url'] = 'http://api.yr.no/weatherapi/radar/1.2/?radarsite='. $radarsite .';width=460;type=animation';
+      $radar['url'] = 'http://api.yr.no/weatherapi/radar/1.5/?radarsite='. $radarsite .';size=large;type=reflectivity;content=animation';
       $radar['link'] = (!empty($data->links->link[5]['url'])) ? check_url($data->links->link[5]['url']) : check_url($data->links->link[1]['url']);
       $radar['text'] = t('Radarimage for !location', array('!location' => $radartext));
     }
