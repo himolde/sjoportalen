@@ -911,13 +911,17 @@ function theme_yr_verdata_table($forecast) {
  *
  * @param $vars
  * The symbol property from the loaded xml object. Should have
- * the attributes 'number' and 'name'.
+ * the attributes 'number', 'name' and 'var'.
  * @return
  * Returns a themed image for the weather symbol.
  */
 function theme_yr_verdata_symbol($vars) {
-  $nsym = FALSE;
-  switch ($vars['symbol']['number']) {
+  if (isset($vars['symbol']['var'])) {
+    $symbol = $vars['symbol']['var'];
+  }
+  else {
+    $nsym = FALSE;
+    switch ($vars['symbol']['number']) {
     case '1':
     case '2':
     case '3':
@@ -927,10 +931,11 @@ function theme_yr_verdata_symbol($vars) {
     case '8':
       $nsym = TRUE;
       break;
+    }
+    $symbol = ($vars['symbol']['number'] > 9) ? $vars['symbol']['number'] : '0' . $vars['symbol']['number'];
+    $vars['period'] .= ''; // Convert the object to a string for the next comparison.
+    if ($nsym === TRUE) $symbol .= ($vars['period'] === '0') ? 'n' : 'd';
   }
-  $symbol = ($vars['symbol']['number'] > 9) ? $vars['symbol']['number'] : '0' . $vars['symbol']['number'];
-  $vars['period'] .= ''; // Convert the object to a string for the next comparison.
-  if ($nsym === TRUE) $symbol .= ($vars['period'] === '0') ? 'n' : 'd';
   $url = variable_get('yr_verdata_symbol_url', 'http://symbol.yr.no/grafikk/sym/b38/') . $symbol . '.png';
   return theme('image', array('path' => $url, 'alt' => $vars['symbol']['name'], 'title' => $vars['symbol']['name']));
 }
