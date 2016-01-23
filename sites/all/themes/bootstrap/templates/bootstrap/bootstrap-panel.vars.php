@@ -25,7 +25,6 @@ function bootstrap_preprocess_bootstrap_panel(&$variables) {
   // Add panel and panel-default classes.
   $attributes['class'][] = 'panel';
   $attributes['class'][] = 'panel-default';
-
   // states.js requires form-wrapper on fieldset to work properly.
   $attributes['class'][] = 'form-wrapper';
 
@@ -37,21 +36,32 @@ function bootstrap_preprocess_bootstrap_panel(&$variables) {
   $variables['collapsed'] = FALSE;
   if (isset($element['#collapsed'])) {
     $variables['collapsed'] = $element['#collapsed'];
+    // Remove collapsed class since we only want it to apply to the inner element
+    if ($index = array_search('collapsed', $attributes['class'])) {
+      unset($attributes['class'][$index]);
+      $attributes['class'] = array_values($attributes['class']);
+    }
   }
   // Force grouped fieldsets to not be collapsible (for vertical tabs).
   if (!empty($element['#group'])) {
     $variables['collapsible'] = FALSE;
     $variables['collapsed'] = FALSE;
   }
-  // Collapsible elements need an ID, so generate one if necessary.
-  if (!isset($attributes['id']) && $variables['collapsible']) {
-    $attributes['id'] = drupal_html_id('bootstrap-panel');
-  }
 
-  // Set the target if the element has an id.
+  // Collapsible elements need an ID, so generate one for the fieldset's inner element.
+  if ($variables['collapsible']) {
+    // Generate an ID for the outer element if necessary.
+    if (!isset($element['#id'])) {
+      $element['#id'] = drupal_html_id('bootstrap-panel');  
+    }
+    $variables['id_inner'] = drupal_html_id($element['#id'] . '-inner');
+  }
   $variables['target'] = NULL;
-  if (isset($attributes['id'])) {
-    $variables['target'] = '#' . $attributes['id'] . ' > .collapse';
+  if (isset($element['#id'])) {
+    $attributes['id'] = $element['#id'];
+    if (isset($variables['id_inner'])) {
+      $variables['target'] = '#' . $variables['id_inner'];
+    }
   }
 
   // Build the panel content.

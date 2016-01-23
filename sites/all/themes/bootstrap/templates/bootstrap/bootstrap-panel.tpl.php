@@ -7,6 +7,7 @@
  *
  * @ingroup templates
  */
+
 ?>
 <fieldset <?php print $attributes; ?>>
   <?php if ($title): ?>
@@ -21,7 +22,7 @@
     <?php endif; ?>
   <?php endif; ?>
   <?php if ($collapsible): ?>
-  <div class="panel-collapse collapse fade<?php print (!$collapsed ? ' in' : ''); ?>">
+  <div class="panel-collapse collapse fade<?php print (!$collapsed ? ' in' : ''); ?>" id="<?php print $id_inner; ?>">
   <?php endif; ?>
   <div class="panel-body">
     <?php if ($description): ?><div class="help-block"><?php print $description; ?></div><?php endif; ?>

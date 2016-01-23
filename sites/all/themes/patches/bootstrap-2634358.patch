@@ -1,0 +1,136 @@
+diff --git a/js/misc/_collapse.js b/js/misc/_collapse.js
+index 66b754f..bb5ec4d 100644
+--- a/js/misc/_collapse.js
++++ b/js/misc/_collapse.js
+@@ -30,13 +30,14 @@ Drupal.collapseScrollIntoView = function (node) {
+ 
+ Drupal.behaviors.collapse = {
+   attach: function (context, settings) {
+-    $('fieldset.collapsible', context).once('collapse', function () {
+-      var $fieldset = $(this);
++    $('fieldset.collapsible > .panel-collapse', context).once('collapse', function () {
++      var $fieldset = $(this).parent(),
++      $inner = $(this);
+       // Expand fieldset if there are errors inside, or if it contains an
+       // element that is targeted by the URI fragment identifier.
+       var anchor = location.hash && location.hash != '#' ? ', ' + location.hash : '';
+       if ($fieldset.find('.error' + anchor).length) {
+-        $fieldset.removeClass('collapsed');
++        $inner.removeClass('collapsed');
+       }
+ 
+       var summary = $('<span class="summary"></span>');
+@@ -52,7 +53,7 @@ Drupal.behaviors.collapse = {
+       var $legend = $('> legend .fieldset-legend', this);
+ 
+       $('<span class="fieldset-legend-prefix element-invisible"></span>')
+-        .append($fieldset.hasClass('collapsed') ? Drupal.t('Show') : Drupal.t('Hide'))
++        .append($inner.hasClass('collapsed') ? Drupal.t('Show') : Drupal.t('Hide'))
+         .prependTo($legend);
+ 
+       $fieldset.find('[data-toggle=collapse]').on('click', function (e) {
+@@ -60,24 +61,22 @@ Drupal.behaviors.collapse = {
+       });
+ 
+       // Bind Bootstrap events with Drupal core events.
+-      $fieldset
++      $inner
+         .append(summary)
+         .on('show.bs.collapse', function () {
+-          $fieldset
+-            .removeClass('collapsed')
+-            .find('> legend span.fieldset-legend-prefix').html(Drupal.t('Hide'));
++          $inner.removeClass('collapsed');
++          $fieldset.find('> legend span.fieldset-legend-prefix').html(Drupal.t('Hide'));
+         })
+         .on('shown.bs.collapse', function () {
+-          $fieldset.trigger({ type: 'collapsed', value: false });
++          $inner.trigger({ type: 'collapsed', value: false });
+           Drupal.collapseScrollIntoView($fieldset.get(0));
+         })
+         .on('hide.bs.collapse', function () {
+-          $fieldset
+-            .addClass('collapsed')
+-            .find('> legend span.fieldset-legend-prefix').html(Drupal.t('Show'));
++          $inner.addClass('collapsed');
++          $fieldset.find('> legend span.fieldset-legend-prefix').html(Drupal.t('Show'));
+         })
+         .on('hidden.bs.collapse', function () {
+-          $fieldset.trigger({ type: 'collapsed', value: true });
++          $inner.trigger({ type: 'collapsed', value: true });
+         });
+     });
+   }
+diff --git a/templates/bootstrap/bootstrap-panel.tpl.php b/templates/bootstrap/bootstrap-panel.tpl.php
+index 656fa20..4be5fc5 100644
+--- a/templates/bootstrap/bootstrap-panel.tpl.php
++++ b/templates/bootstrap/bootstrap-panel.tpl.php
+@@ -7,6 +7,7 @@
+  *
+  * @ingroup templates
+  */
++
+ ?>
+ <fieldset <?php print $attributes; ?>>
+   <?php if ($title): ?>
+@@ -21,7 +22,7 @@
+     <?php endif; ?>
+   <?php endif; ?>
+   <?php if ($collapsible): ?>
+-  <div class="panel-collapse collapse fade<?php print (!$collapsed ? ' in' : ''); ?>">
++  <div class="panel-collapse collapse fade<?php print (!$collapsed ? ' in' : ''); ?>" id="<?php print $id_inner; ?>">
+   <?php endif; ?>
+   <div class="panel-body">
+     <?php if ($description): ?><div class="help-block"><?php print $description; ?></div><?php endif; ?>
+diff --git a/templates/bootstrap/bootstrap-panel.vars.php b/templates/bootstrap/bootstrap-panel.vars.php
+index 8d2c50c..497fbf8 100644
+--- a/templates/bootstrap/bootstrap-panel.vars.php
++++ b/templates/bootstrap/bootstrap-panel.vars.php
+@@ -25,7 +25,6 @@ function bootstrap_preprocess_bootstrap_panel(&$variables) {
+   // Add panel and panel-default classes.
+   $attributes['class'][] = 'panel';
+   $attributes['class'][] = 'panel-default';
+-
+   // states.js requires form-wrapper on fieldset to work properly.
+   $attributes['class'][] = 'form-wrapper';
+ 
+@@ -37,21 +36,32 @@ function bootstrap_preprocess_bootstrap_panel(&$variables) {
+   $variables['collapsed'] = FALSE;
+   if (isset($element['#collapsed'])) {
+     $variables['collapsed'] = $element['#collapsed'];
++    // Remove collapsed class since we only want it to apply to the inner element
++    if ($index = array_search('collapsed', $attributes['class'])) {
++      unset($attributes['class'][$index]);
++      $attributes['class'] = array_values($attributes['class']);
++    }
+   }
+   // Force grouped fieldsets to not be collapsible (for vertical tabs).
+   if (!empty($element['#group'])) {
+     $variables['collapsible'] = FALSE;
+     $variables['collapsed'] = FALSE;
+   }
+-  // Collapsible elements need an ID, so generate one if necessary.
+-  if (!isset($attributes['id']) && $variables['collapsible']) {
+-    $attributes['id'] = drupal_html_id('bootstrap-panel');
+-  }
+ 
+-  // Set the target if the element has an id.
++  // Collapsible elements need an ID, so generate one for the fieldset's inner element.
++  if ($variables['collapsible']) {
++    // Generate an ID for the outer element if necessary.
++    if (!isset($element['#id'])) {
++      $element['#id'] = drupal_html_id('bootstrap-panel');  
++    }
++    $variables['id_inner'] = drupal_html_id($element['#id'] . '-inner');
++  }
+   $variables['target'] = NULL;
+-  if (isset($attributes['id'])) {
+-    $variables['target'] = '#' . $attributes['id'] . ' > .collapse';
++  if (isset($element['#id'])) {
++    $attributes['id'] = $element['#id'];
++    if (isset($variables['id_inner'])) {
++      $variables['target'] = '#' . $variables['id_inner'];
++    }
+   }
+ 
+   // Build the panel content.

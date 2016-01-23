@@ -30,13 +30,14 @@ Drupal.collapseScrollIntoView = function (node) {
 
 Drupal.behaviors.collapse = {
   attach: function (context, settings) {
-    $('fieldset.collapsible', context).once('collapse', function () {
-      var $fieldset = $(this);
+    $('fieldset.collapsible > .panel-collapse', context).once('collapse', function () {
+      var $fieldset = $(this).parent(),
+      $inner = $(this);
       // Expand fieldset if there are errors inside, or if it contains an
       // element that is targeted by the URI fragment identifier.
       var anchor = location.hash && location.hash != '#' ? ', ' + location.hash : '';
       if ($fieldset.find('.error' + anchor).length) {
-        $fieldset.removeClass('collapsed');
+        $inner.removeClass('collapsed');
       }
 
       var summary = $('<span class="summary"></span>');
@@ -52,7 +53,7 @@ Drupal.behaviors.collapse = {
       var $legend = $('> legend .fieldset-legend', this);
 
       $('<span class="fieldset-legend-prefix element-invisible"></span>')
-        .append($fieldset.hasClass('collapsed') ? Drupal.t('Show') : Drupal.t('Hide'))
+        .append($inner.hasClass('collapsed') ? Drupal.t('Show') : Drupal.t('Hide'))
         .prependTo($legend);
 
       $fieldset.find('[data-toggle=collapse]').on('click', function (e) {
@@ -60,24 +61,22 @@ Drupal.behaviors.collapse = {
       });
 
       // Bind Bootstrap events with Drupal core events.
-      $fieldset
+      $inner
         .append(summary)
         .on('show.bs.collapse', function () {
-          $fieldset
-            .removeClass('collapsed')
-            .find('> legend span.fieldset-legend-prefix').html(Drupal.t('Hide'));
+          $inner.removeClass('collapsed');
+          $fieldset.find('> legend span.fieldset-legend-prefix').html(Drupal.t('Hide'));
         })
         .on('shown.bs.collapse', function () {
-          $fieldset.trigger({ type: 'collapsed', value: false });
+          $inner.trigger({ type: 'collapsed', value: false });
           Drupal.collapseScrollIntoView($fieldset.get(0));
         })
         .on('hide.bs.collapse', function () {
-          $fieldset
-            .addClass('collapsed')
-            .find('> legend span.fieldset-legend-prefix').html(Drupal.t('Show'));
+          $inner.addClass('collapsed');
+          $fieldset.find('> legend span.fieldset-legend-prefix').html(Drupal.t('Show'));
         })
         .on('hidden.bs.collapse', function () {
-          $fieldset.trigger({ type: 'collapsed', value: true });
+          $inner.trigger({ type: 'collapsed', value: true });
         });
     });
   }
