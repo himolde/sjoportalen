@@ -1,0 +1,30 @@
+<?php
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ *
+ * - A company isn't allowed to edit the offer.
+ * - A coordinator should only edit the offer.
+ */
+function sjoportalen_form_transport_node_form_alter(&$form, &$form_state, $form_id) {
+  global $user;
+
+  $koordinator_fields = array('field_price', 'field_date', 'field_status');
+
+  if (in_array('firma', $user->roles)) {
+    foreach ($koordinator_fields as $key) {
+      $form[$key]['#disabled'] = TRUE;
+    }
+  }
+  else if (in_array('koordinator', $user->roles)) {
+    foreach ($form as $key => $dummy) {
+      if (in_array($key, $koordinator_fields)) {
+        continue;
+      }
+      else if (substr($key, 0, 6) == "field_") {
+        $form[$key]['#disabled'] = TRUE;
+      }
+    }
+  }
+}
+
